@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body { font-family: sans-serif; background-color: #f0f2f5; padding: 15px; margin: 0; }
-        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h2 { color: #1a73e8; text-align: center; margin-bottom: 20px; }
         .config-row { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px; align-items: center; border-left: 5px solid #1a73e8; }
         .config-item { display: flex; align-items: center; gap: 8px; }
@@ -18,13 +18,13 @@
         .btn-del { background: #ea4335; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
         .btn-clear { background: #808080; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; margin-left: auto; }
         
-        .result-panel { display: flex; gap: 20px; margin-top: 20px; }
-        .info-box { flex: 1; padding: 15px; border-radius: 8px; color: white; }
+        .result-panel { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
+        .info-box { flex: 1; min-width: 280px; padding: 15px; border-radius: 8px; color: white; }
         .weight-box { background: #d93025; }
         .erp-box { background: #1a73e8; }
         .box-title { font-size: 14px; opacity: 0.9; margin-bottom: 5px; }
         .box-value { font-size: 28px; font-weight: bold; }
-        .suggestion { font-size: 14px; margin-top: 8px; background: rgba(255,255,255,0.2); padding: 5px; border-radius: 4px; }
+        .suggestion { font-size: 14px; margin-top: 8px; background: rgba(255,255,255,0.2); padding: 5px; border-radius: 4px; line-height: 1.5; }
     </style>
 </head>
 <body>
@@ -47,12 +47,18 @@
         <div class="config-item" style="margin-left: 10px; border-left: 1px solid #ccc; padding-left: 15px;">
             <label>標準板材:</label>
             <select id="sheetSize" onchange="calculateAll()" style="padding: 8px; border-radius: 4px;">
-                <option value="2.973">4' x 8' (1219x2438)</option>
                 <option value="4.645">5' x 10' (1524x3048)</option>
                 <option value="9.290">5' x 20' (1524x6096)</option>
                 <option value="14.864">8' x 20' (2438x6096)</option>
                 <option value="29.729">8' x 40' (2438x12192)</option>
+                <option value="2.973">4' x 8' (1219x2438)</option>
             </select>
+        </div>
+        <div class="config-item" style="border-left: 1px solid #ccc; padding-left: 15px;">
+            <label>餘料尺寸(mm):</label>
+            <input type="number" id="remL" placeholder="長" style="width: 60px;" oninput="calculateAll()">
+            <span>x</span>
+            <input type="number" id="remW" placeholder="寬" style="width: 60px;" oninput="calculateAll()">
         </div>
         <button class="btn-clear" onclick="resetTable()">清空內容</button>
     </div>
@@ -75,20 +81,18 @@
 
     <div class="result-panel">
         <div class="info-box weight-box">
-            <div class="box-title">總估算重量</div>
+            <div class="box-title">總估算重量 (由清單計算)</div>
             <div class="box-value"><span id="grandTotalWeight">0.00</span> <span style="font-size: 16px;">KG</span></div>
         </div>
         <div class="info-box erp-box">
             <div class="box-title">ERP 領料建議</div>
             <div class="box-value"><span id="erpQty">0.00</span> <span style="font-size: 16px;">片</span></div>
-            <div id="erpNote" class="suggestion">請輸入尺寸開始計算</div>
+            <div id="erpNote" class="suggestion">請輸入裁切尺寸或餘料尺寸</div>
         </div>
     </div>
 </div>
 
 <script>
-    const FULL_SHEET_AREA = 4.645152; // 5'x10' = 1.524 * 3.048
-
     window.onload = function() {
         for(let i=0; i<4; i++) addRow();
     };
@@ -114,6 +118,8 @@
     function resetTable() {
         if(confirm("確定要清空嗎？")) {
             document.getElementById('itemBody').innerHTML = "";
+            document.getElementById('remL').value = "";
+            document.getElementById('remW').value = "";
             for(let i=0; i<4; i++) addRow();
             calculateAll();
         }
@@ -125,8 +131,13 @@
         const sheetAreaLimit = parseFloat(document.getElementById('sheetSize').value);
         const rows = document.getElementById('itemBody').rows;
         
+        // 獲取餘料尺寸並計算餘料面積
+        const remL = parseFloat(document.getElementById('remL').value) || 0;
+        const remW = parseFloat(document.getElementById('remW').value) || 0;
+        const remArea = (remL / 1000) * (remW / 1000);
+
         let totalWeight = 0;
-        let totalArea = 0;
+        let tableTotalArea = 0;
 
         for (let row of rows) {
             const L = parseFloat(row.querySelector('.len').value) || 0;
@@ -140,31 +151,41 @@
             row.querySelector('.rowArea').innerText = areaM2.toFixed(3);
             
             totalWeight += weight;
-            totalArea += areaM2;
+            tableTotalArea += areaM2;
         }
 
         document.getElementById('grandTotalWeight').innerText = totalWeight.toFixed(2);
 
-        // --- ERP 邏輯 ---
-        const ratio = totalArea / sheetAreaLimit;
+        // --- ERP 領料邏輯判斷 ---
+        let usedArea = 0;
+        let notePrefix = "";
+
+        // 如果師傅有填寫餘料尺寸，優先使用「原板面積 - 餘料面積」來回推
+        if (remL > 0 && remW > 0) {
+            usedArea = sheetAreaLimit - remArea;
+            notePrefix = "<b>根據餘料回推：</b><br>";
+        } else {
+            usedArea = tableTotalArea;
+            notePrefix = "<b>根據清單加總：</b><br>";
+        }
+
+        const ratio = usedArea / sheetAreaLimit;
         let erpFinalQty = 0;
         let note = "";
 
-        if (totalArea === 0) {
+        if (usedArea <= 0) {
             erpFinalQty = 0;
-            note = "等待輸入...";
+            note = "請輸入尺寸";
         } else if (ratio > 0.5) {
-            // 超過一半，領用一整片
             erpFinalQty = 1.00;
-            note = `實際佔比 ${(ratio*100).toFixed(1)}% ( > 50% )，建議領用 1 片`;
+            note = `${notePrefix}使用面積佔 ${(ratio * 100).toFixed(1)}% (超過 50%)，ERP 領用 1 片`;
         } else {
-            // 未滿一半，按比例領用
             erpFinalQty = ratio;
-            note = `實際佔比 ${(ratio*100).toFixed(1)}% ( ≤ 50% )，建議領 ${ratio.toFixed(2)} 片`;
+            note = `${notePrefix}使用面積佔 ${(ratio * 100).toFixed(1)}% (未過半)，ERP 領用 ${ratio.toFixed(2)} 片`;
         }
 
         document.getElementById('erpQty').innerText = erpFinalQty.toFixed(2);
-        document.getElementById('erpNote').innerText = note;
+        document.getElementById('erpNote').innerHTML = note;
     }
 </script>
 
