@@ -2,122 +2,166 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>鐵材重量累加計算機</title>
+    <title>鐵材重量與 ERP 領料計算機</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body { font-family: sans-serif; background-color: #f0f2f5; padding: 15px; margin: 0; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h2 { color: #1a73e8; text-align: center; }
-        .config-row { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px; align-items: center; }
-        .config-item { display: flex; align-items: center; gap: 5px; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { color: #1a73e8; text-align: center; margin-bottom: 20px; }
+        .config-row { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px; align-items: center; border-left: 5px solid #1a73e8; }
+        .config-item { display: flex; align-items: center; gap: 8px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        th { background: #e8f0fe; }
-        input { width: 90%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
+        th { background: #e8f0fe; font-size: 14px; }
+        input { width: 90%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; text-align: center; }
         .btn-add { background: #34a853; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; width: 100%; margin-top: 15px; }
         .btn-del { background: #ea4335; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
-        .btn-clear { background: #808080; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; margin-left: auto; }
-        .total-section { margin-top: 20px; font-size: 24px; text-align: right; color: #d93025; font-weight: bold; border-top: 2px solid #eee; padding-top: 15px; }
+        .btn-clear { background: #808080; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; margin-left: auto; }
+        
+        .result-panel { display: flex; gap: 20px; margin-top: 20px; }
+        .info-box { flex: 1; padding: 15px; border-radius: 8px; color: white; }
+        .weight-box { background: #d93025; }
+        .erp-box { background: #1a73e8; }
+        .box-title { font-size: 14px; opacity: 0.9; margin-bottom: 5px; }
+        .box-value { font-size: 28px; font-weight: bold; }
+        .suggestion { font-size: 14px; margin-top: 8px; background: rgba(255,255,255,0.2); padding: 5px; border-radius: 4px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>鐵材重量累加計算機</h2>
+    <h2>鐵材重量 & ERP 領料建議</h2>
 
     <div class="config-row">
         <div class="config-item">
-            <label>預設厚度(mm): </label>
-            <input type="number" id="defaultT" value="12" style="width: 70px;" oninput="calculateAll()">
+            <label>厚度(mm):</label>
+            <input type="number" id="defaultT" value="12" style="width: 60px;" oninput="calculateAll()">
         </div>
         <div class="config-item">
-            <label>材質: </label>
-            <select id="density" onchange="calculateAll()" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+            <label>材質:</label>
+            <select id="density" onchange="calculateAll()" style="padding: 8px; border-radius: 4px;">
                 <option value="7.85">黑鐵 (7.85)</option>
                 <option value="7.93">白鐵 (7.93)</option>
             </select>
         </div>
-        <button class="btn-clear" onclick="resetTable()">全部清空</button>
+        <div class="config-item" style="margin-left: 10px; border-left: 1px solid #ccc; padding-left: 15px;">
+            <label>標準板材:</label>
+            <select id="sheetSize" onchange="calculateAll()" style="padding: 8px; border-radius: 4px;">
+                <option value="4.645">5' x 10' (1524x3048)</option>
+                <option value="2.973">4' x 8' (1219x2438)</option>
+            </select>
+        </div>
+        <button class="btn-clear" onclick="resetTable()">清空內容</button>
     </div>
 
     <table id="itemTable">
         <thead>
             <tr>
-                <th>長(mm)</th>
-                <th>寬(mm)</th>
+                <th>長 (mm)</th>
+                <th>寬 (mm)</th>
                 <th>數量</th>
-                <th>重量(kg)</th>
+                <th>重量 (kg)</th>
+                <th>面積 (m²)</th>
                 <th>操作</th>
             </tr>
         </thead>
-        <tbody id="itemBody">
-            </tbody>
+        <tbody id="itemBody"></tbody>
     </table>
 
-    <button class="btn-add" onclick="addRow()">+ 新增一列</button>
+    <button class="btn-add" onclick="addRow()">+ 新增裁切項目</button>
 
-    <div class="total-section">
-        總重量： <span id="grandTotal">0.00</span> KG
+    <div class="result-panel">
+        <div class="info-box weight-box">
+            <div class="box-title">總估算重量</div>
+            <div class="box-value"><span id="grandTotalWeight">0.00</span> <span style="font-size: 16px;">KG</span></div>
+        </div>
+        <div class="info-box erp-box">
+            <div class="box-title">ERP 領料建議</div>
+            <div class="box-value"><span id="erpQty">0.00</span> <span style="font-size: 16px;">片</span></div>
+            <div id="erpNote" class="suggestion">請輸入尺寸開始計算</div>
+        </div>
     </div>
 </div>
 
 <script>
-    // 網頁開啟時，預設先給 5 個空白列
+    const FULL_SHEET_AREA = 4.645152; // 5'x10' = 1.524 * 3.048
+
     window.onload = function() {
-        for(let i=0; i<5; i++) {
-            addRow();
-        }
+        for(let i=0; i<4; i++) addRow();
     };
 
-    // 新增一列的函數
     function addRow() {
         const tbody = document.getElementById('itemBody');
         const row = tbody.insertRow();
         row.innerHTML = `
-            <td><input type="number" class="len" placeholder="長度" oninput="calculateAll()"></td>
-            <td><input type="number" class="wid" placeholder="寬度" oninput="calculateAll()"></td>
-            <td><input type="number" class="qty" placeholder="1" oninput="calculateAll()"></td>
+            <td><input type="number" class="len" placeholder="mm" oninput="calculateAll()"></td>
+            <td><input type="number" class="wid" placeholder="mm" oninput="calculateAll()"></td>
+            <td><input type="number" class="qty" value="1" oninput="calculateAll()"></td>
             <td class="rowWeight">0.00</td>
+            <td class="rowArea">0.00</td>
             <td><button class="btn-del" onclick="delRow(this)">刪除</button></td>
         `;
     }
 
-    // 刪除該列
     function delRow(btn) {
         btn.parentElement.parentElement.remove();
         calculateAll();
     }
 
-    // 全部清空重來
     function resetTable() {
-        if(confirm("確定要清空所有內容嗎？")) {
+        if(confirm("確定要清空嗎？")) {
             document.getElementById('itemBody').innerHTML = "";
-            for(let i=0; i<5; i++) addRow();
+            for(let i=0; i<4; i++) addRow();
             calculateAll();
         }
     }
 
-    // 核心計算公式
     function calculateAll() {
         const density = parseFloat(document.getElementById('density').value);
         const thickness = parseFloat(document.getElementById('defaultT').value) || 0;
+        const sheetAreaLimit = parseFloat(document.getElementById('sheetSize').value);
         const rows = document.getElementById('itemBody').rows;
-        let total = 0;
+        
+        let totalWeight = 0;
+        let totalArea = 0;
 
         for (let row of rows) {
             const L = parseFloat(row.querySelector('.len').value) || 0;
             const W = parseFloat(row.querySelector('.wid').value) || 0;
-            // 數量沒填時預設為 0
             const Q = parseFloat(row.querySelector('.qty').value) || 0;
             
-            // 公式: (L/1000) * (W/1000) * 厚度 * 數量 * 比重
-            const rowW = (L / 1000) * (W / 1000) * thickness * Q * density;
+            const areaM2 = (L / 1000) * (W / 1000) * Q;
+            const weight = areaM2 * thickness * density;
             
-            row.querySelector('.rowWeight').innerText = rowW.toFixed(2);
-            total += rowW;
+            row.querySelector('.rowWeight').innerText = weight.toFixed(2);
+            row.querySelector('.rowArea').innerText = areaM2.toFixed(3);
+            
+            totalWeight += weight;
+            totalArea += areaM2;
         }
 
-        document.getElementById('grandTotal').innerText = total.toFixed(2);
+        document.getElementById('grandTotalWeight').innerText = totalWeight.toFixed(2);
+
+        // --- ERP 邏輯 ---
+        const ratio = totalArea / sheetAreaLimit;
+        let erpFinalQty = 0;
+        let note = "";
+
+        if (totalArea === 0) {
+            erpFinalQty = 0;
+            note = "等待輸入...";
+        } else if (ratio > 0.5) {
+            // 超過一半，領用一整片
+            erpFinalQty = 1.00;
+            note = `實際佔比 ${(ratio*100).toFixed(1)}% ( > 50% )，建議領用 1 片`;
+        } else {
+            // 未滿一半，按比例領用
+            erpFinalQty = ratio;
+            note = `實際佔比 ${(ratio*100).toFixed(1)}% ( ≤ 50% )，建議領 ${ratio.toFixed(2)} 片`;
+        }
+
+        document.getElementById('erpQty').innerText = erpFinalQty.toFixed(2);
+        document.getElementById('erpNote').innerText = note;
     }
 </script>
 
