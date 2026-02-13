@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>鐵材重量累加計算機</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: sans-serif; background-color: #f0f2f5; padding: 15px; margin: 0; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { color: #1a73e8; text-align: center; }
+        .config-row { display: flex; gap: 10px; margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px; align-items: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        th { background: #e8f0fe; }
+        input { width: 90%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+        .btn-add { background: #34a853; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; width: 100%; margin-top: 10px; }
+        .btn-del { background: #ea4335; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        .total-section { margin-top: 20px; font-size: 24px; text-align: right; color: #d93025; font-weight: bold; border-top: 2px solid #eee; padding-top: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>鐵材重量累加計算機</h2>
+
+    <div class="config-row">
+        <div>
+            <label>預設厚度(mm): </label>
+            <input type="number" id="defaultT" value="12" style="width: 60px;" oninput="updateAllRows()">
+        </div>
+        <div>
+            <label>材質: </label>
+            <select id="density" onchange="calculateAll()" style="padding: 8px;">
+                <option value="7.85">黑鐵 (7.85)</option>
+                <option value="7.93">白鐵 (7.93)</option>
+            </select>
+        </div>
+    </div>
+
+    <table id="itemTable">
+        <thead>
+            <tr>
+                <th>長(mm)</th>
+                <th>寬(mm)</th>
+                <th>數量</th>
+                <th>重量(kg)</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="itemBody">
+            </tbody>
+    </table>
+
+    <button class="btn-add" onclick="addRow()">+ 新增一列</button>
+
+    <div class="total-section">
+        總重量： <span id="grandTotal">0.00</span> KG
+    </div>
+</div>
+
+<script>
+    // 初始化，根據照片先給四列
+    window.onload = function() {
+        for(let i=0; i<4; i++) addRow();
+        // 預填入你照片中的數據 (選填)
+        const rows = document.getElementById('itemBody').rows;
+        const data = [[520, 1310, 1], [520, 570, 1], [380, 350, 1], [400, 140, 1]];
+        data.forEach((d, i) => {
+            rows[i].cells[0].children[0].value = d[0];
+            rows[i].cells[1].children[0].value = d[1];
+            rows[i].cells[2].children[0].value = d[2];
+        });
+        calculateAll();
+    };
+
+    function addRow() {
+        const tbody = document.getElementById('itemBody');
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td><input type="number" class="len" placeholder="長" oninput="calculateAll()"></td>
+            <td><input type="number" class="wid" placeholder="寬" oninput="calculateAll()"></td>
+            <td><input type="number" class="qty" value="1" oninput="calculateAll()"></td>
+            <td class="rowWeight">0.00</td>
+            <td><button class="btn-del" onclick="delRow(this)">刪除</button></td>
+        `;
+    }
+
+    function delRow(btn) {
+        btn.parentElement.parentElement.remove();
+        calculateAll();
+    }
+
+    function updateAllRows() { calculateAll(); }
+
+    function calculateAll() {
+        const density = parseFloat(document.getElementById('density').value);
+        const thickness = parseFloat(document.getElementById('defaultT').value) || 0;
+        const rows = document.getElementById('itemBody').rows;
+        let total = 0;
+
+        for (let row of rows) {
+            const L = parseFloat(row.querySelector('.len').value) || 0;
+            const W = parseFloat(row.querySelector('.wid').value) || 0;
+            const Q = parseFloat(row.querySelector('.qty').value) || 0;
+            
+            // 公式: (L/1000) * (W/1000) * T * Q * density
+            const rowW = (L / 1000) * (W / 1000) * thickness * Q * density;
+            row.querySelector('.rowWeight').innerText = rowW.toFixed(2);
+            total += rowW;
+        }
+
+        document.getElementById('grandTotal').innerText = total.toFixed(2);
+    }
+</script>
+
+</body>
+</html>
