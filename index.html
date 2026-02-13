@@ -8,13 +8,15 @@
         body { font-family: sans-serif; background-color: #f0f2f5; padding: 15px; margin: 0; }
         .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h2 { color: #1a73e8; text-align: center; }
-        .config-row { display: flex; gap: 10px; margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px; align-items: center; }
+        .config-row { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px; align-items: center; }
+        .config-item { display: flex; align-items: center; gap: 5px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
         th { background: #e8f0fe; }
         input { width: 90%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
-        .btn-add { background: #34a853; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; width: 100%; margin-top: 10px; }
+        .btn-add { background: #34a853; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; width: 100%; margin-top: 15px; }
         .btn-del { background: #ea4335; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        .btn-clear { background: #808080; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; margin-left: auto; }
         .total-section { margin-top: 20px; font-size: 24px; text-align: right; color: #d93025; font-weight: bold; border-top: 2px solid #eee; padding-top: 15px; }
     </style>
 </head>
@@ -24,17 +26,18 @@
     <h2>鐵材重量累加計算機</h2>
 
     <div class="config-row">
-        <div>
+        <div class="config-item">
             <label>預設厚度(mm): </label>
-            <input type="number" id="defaultT" value="12" style="width: 60px;" oninput="updateAllRows()">
+            <input type="number" id="defaultT" value="12" style="width: 70px;" oninput="calculateAll()">
         </div>
-        <div>
+        <div class="config-item">
             <label>材質: </label>
-            <select id="density" onchange="calculateAll()" style="padding: 8px;">
+            <select id="density" onchange="calculateAll()" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
                 <option value="7.85">黑鐵 (7.85)</option>
                 <option value="7.93">白鐵 (7.93)</option>
             </select>
         </div>
+        <button class="btn-clear" onclick="resetTable()">全部清空</button>
     </div>
 
     <table id="itemTable">
@@ -59,39 +62,42 @@
 </div>
 
 <script>
-    // 初始化，根據照片先給四列
+    // 網頁開啟時，預設先給 5 個空白列
     window.onload = function() {
-        for(let i=0; i<4; i++) addRow();
-        // 預填入你照片中的數據 (選填)
-        const rows = document.getElementById('itemBody').rows;
-        const data = [[520, 1310, 1], [520, 570, 1], [380, 350, 1], [400, 140, 1]];
-        data.forEach((d, i) => {
-            rows[i].cells[0].children[0].value = d[0];
-            rows[i].cells[1].children[0].value = d[1];
-            rows[i].cells[2].children[0].value = d[2];
-        });
-        calculateAll();
+        for(let i=0; i<5; i++) {
+            addRow();
+        }
     };
 
+    // 新增一列的函數
     function addRow() {
         const tbody = document.getElementById('itemBody');
         const row = tbody.insertRow();
         row.innerHTML = `
-            <td><input type="number" class="len" placeholder="長" oninput="calculateAll()"></td>
-            <td><input type="number" class="wid" placeholder="寬" oninput="calculateAll()"></td>
-            <td><input type="number" class="qty" value="1" oninput="calculateAll()"></td>
+            <td><input type="number" class="len" placeholder="長度" oninput="calculateAll()"></td>
+            <td><input type="number" class="wid" placeholder="寬度" oninput="calculateAll()"></td>
+            <td><input type="number" class="qty" placeholder="1" oninput="calculateAll()"></td>
             <td class="rowWeight">0.00</td>
             <td><button class="btn-del" onclick="delRow(this)">刪除</button></td>
         `;
     }
 
+    // 刪除該列
     function delRow(btn) {
         btn.parentElement.parentElement.remove();
         calculateAll();
     }
 
-    function updateAllRows() { calculateAll(); }
+    // 全部清空重來
+    function resetTable() {
+        if(confirm("確定要清空所有內容嗎？")) {
+            document.getElementById('itemBody').innerHTML = "";
+            for(let i=0; i<5; i++) addRow();
+            calculateAll();
+        }
+    }
 
+    // 核心計算公式
     function calculateAll() {
         const density = parseFloat(document.getElementById('density').value);
         const thickness = parseFloat(document.getElementById('defaultT').value) || 0;
@@ -101,10 +107,12 @@
         for (let row of rows) {
             const L = parseFloat(row.querySelector('.len').value) || 0;
             const W = parseFloat(row.querySelector('.wid').value) || 0;
+            // 數量沒填時預設為 0
             const Q = parseFloat(row.querySelector('.qty').value) || 0;
             
-            // 公式: (L/1000) * (W/1000) * T * Q * density
+            // 公式: (L/1000) * (W/1000) * 厚度 * 數量 * 比重
             const rowW = (L / 1000) * (W / 1000) * thickness * Q * density;
+            
             row.querySelector('.rowWeight').innerText = rowW.toFixed(2);
             total += rowW;
         }
